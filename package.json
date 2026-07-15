@@ -1,0 +1,23 @@
+{
+  "name": "envdiff",
+  "version": "1.0.0",
+  "description": "Diff two .env files (or an .env against its .env.example): missing keys, extra keys, changed values — with secret masking.",
+  "type": "module",
+  "bin": {
+    "envdiff": "./dist/cli.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsdown",
+    "test": "bun test",
+    "start": "bun run src/cli.ts",
+    "prepublishOnly": "bun run build"
+  },
+  "keywords": ["dotenv", "env", "diff", "cli", "secrets", "config"],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "tsdown": "^0.9.0",
+    "typescript": "^5.7.0"
+  }
+}
