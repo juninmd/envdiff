@@ -51,6 +51,58 @@ For each pair envdiff reports three buckets:
 
 Exit codes: `0` no differences (or differences without `--exit-code`), `1` differences with `--exit-code`, `2` usage/IO error.
 
+### JSON Output
+
+When using `--json`, `envdiff` outputs a JSON object with a stable contract (`schemaVersion: 1`):
+
+- `schemaVersion` (`number`): Schema version (currently `1`).
+- `onlyInA` (`string[]`): Keys present in the first file, missing from the second.
+- `onlyInB` (`string[]`): Keys present in the second file, missing from the first.
+- `changed` (`Array<{ key: string, a: string, b: string }> | null`): Differing values (masked by default unless `--no-mask` is set). Set to `null` when `--keys-only` is used.
+- `same` (`string[]`): Keys present in both files with identical values.
+
+#### Example (`envdiff .env .env.example --json`)
+
+```json
+{
+  "schemaVersion": 1,
+  "onlyInA": [
+    "LOCAL_SECRET"
+  ],
+  "onlyInB": [
+    "FEATURE_FLAG"
+  ],
+  "changed": [
+    {
+      "key": "DATABASE_URL",
+      "a": "po******al (28)",
+      "b": "po******st (27)"
+    }
+  ],
+  "same": [
+    "PORT"
+  ]
+}
+```
+
+#### Example with `--keys-only` (`envdiff .env .env.example --json --keys-only`)
+
+```json
+{
+  "schemaVersion": 1,
+  "onlyInA": [
+    "LOCAL_SECRET"
+  ],
+  "onlyInB": [
+    "FEATURE_FLAG"
+  ],
+  "changed": null,
+  "same": [
+    "PORT"
+  ]
+}
+```
+
 ## Development
 
 Built with [Bun](https://bun.sh) and bundled with [tsdown](https://github.com/rolldown/tsdown). No runtime dependencies.
