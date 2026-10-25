@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { parseEnv } from "./parse";
 import { diffEnv, maskValue, hasDifferences } from "./diff";
+import pkg from "../package.json" with { type: "json" };
 import { colorEnabled, createColors } from "./colors";
 
 const C = createColors(colorEnabled(process.env, Boolean(process.stdout?.isTTY)));
@@ -151,7 +152,7 @@ export function main(argv: string[]): number {
     }
     if (diff.onlyInB.length) {
       console.log(C.green(`  only in ${nameB} (${diff.onlyInB.length}):`));
-      for (const k of diff.onlyB) console.log(`    + ${k}`);
+      for (const k of diff.onlyInB) console.log(`    + ${k}`);
     }
     if (!keysOnly && diff.changed.length) {
       console.log(C.yellow(`  changed (${diff.changed.length}):`));
