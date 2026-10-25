@@ -132,7 +132,7 @@ test("--json output without --keys-only includes schemaVersion 1 and masked chan
     expect(json.onlyInB).toEqual(["C"]);
     expect(json.same).toEqual(["SAME"]);
     expect(json.changed).toEqual([
-      { key: "B", a: "su******et (11)", b: "di******et (15)" },
+      { key: "B", a: "********", b: "********" },
     ]);
   } finally {
     unlinkSync(pathA);

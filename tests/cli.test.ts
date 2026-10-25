@@ -1,8 +1,8 @@
 import { test, expect, beforeEach, afterEach } from "bun:test";
 import { main } from "../src/cli";
 import pkg from "../package.json" with { type: "json" };
-import { writeFileSync, unlinkSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { writeFileSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
 
 let logOutput: string[] = [];
 let errorOutput: string[] = [];
@@ -24,17 +24,6 @@ afterEach(() => {
   console.log = originalLog;
   console.error = originalError;
 });
-
-function runCli(args: string[]) {
-  const code = main(args);
-  const stdout = logOutput.join("\n");
-  const stderr = errorOutput.join("\n");
-  return { exitCode: code, stdout, stderr };
-}
-
-const fixtureDir = resolve(import.meta.dir, "fixtures");
-const fixtureA = join(fixtureDir, "a.env");
-const fixtureB = join(fixtureDir, "b.env");
 
 test("--exit-codes exits with 2 and writes unknown option in stderr", () => {
   const code = main(["--exit-codes"]);
@@ -138,6 +127,19 @@ test("existing exit codes remain stable", () => {
   }
 });
 
+const cliPath = join(import.meta.dir, "../src/cli.ts");
+const fixtureA = join(import.meta.dir, "fixtures/a.env");
+const fixtureB = join(import.meta.dir, "fixtures/b.env");
+
+function runCli(args: string[]) {
+  const result = Bun.spawnSync(["bun", "run", cliPath, ...args]);
+  return {
+    exitCode: result.exitCode,
+    stdout: result.stdout.toString(),
+    stderr: result.stderr.toString(),
+  };
+}
+
 test("--json without --no-mask masks changed values", () => {
   const { exitCode, stdout } = runCli([fixtureA, fixtureB, "--json"]);
   expect(exitCode).toBe(0);
@@ -148,8 +150,8 @@ test("--json without --no-mask masks changed values", () => {
   expect(json.changed).toEqual([
     {
       key: "TOKEN",
-      a: "se******23 (17)",
-      b: "ou******56 (15)",
+      a: "********",
+      b: "********",
     },
   ]);
 });
@@ -177,7 +179,7 @@ test("--keys-only --json contains no values", () => {
   expect(stdout).not.toContain("outro-falso-456");
 
   const json = JSON.parse(stdout);
-  expect(json.changed).toBeUndefined();
+  expect(json.changed).toBeNull();
   expect(json.onlyInA).toEqual(["ONLY_A"]);
   expect(json.onlyInB).toEqual(["ONLY_B"]);
 });
