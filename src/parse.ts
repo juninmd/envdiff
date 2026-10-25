@@ -1,3 +1,6 @@
+// Minimal .env parser: KEY=VALUE, `export` prefix, quotes, inline comments,
+// and `\n` escapes inside double quotes. Order-preserving.
+
 export type ParseWarningKind =
   | "malformed"
   | "invalid-key"
@@ -76,16 +79,14 @@ export function parseEnvDetailed(text: string): ParseResult {
             ? inner.replace(/\\n/g, "\n").replace(/\\"/g, '"')
             : inner;
         }
+      } else {
+        warnings.push({ line: lineNum, kind: "unclosed-quote", key });
       }
     }
 
     if (value === null) {
       const hash = rawVal.search(/[ \t]+#/);
       value = hash > -1 ? rawVal.slice(0, hash).trim() : rawVal.trim();
-    }
-
-    if (value === null) {
-      value = "";
     }
 
     values.set(key, value);

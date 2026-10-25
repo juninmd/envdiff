@@ -4,6 +4,8 @@ import { parseEnvDetailed, ParseWarning } from "./parse";
 import { diffEnv, maskValue, hasDifferences } from "./diff";
 import { colorEnabled, createColors } from "./colors";
 
+const C = createColors(colorEnabled(process.env, Boolean(process.stdout?.isTTY)));
+
 function formatWarning(filePath: string, w: ParseWarning): string {
   let msg = "";
   switch (w.kind) {
@@ -31,8 +33,6 @@ function parseFile(filePath: string): Map<string, string> {
   }
   return values;
 }
-
-const C = createColors(colorEnabled(process.env, Boolean(process.stdout?.isTTY)));
 
 const HELP = `envdiff — compare two .env files
 
