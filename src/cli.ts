@@ -57,7 +57,13 @@ function main(argv: string[]): number {
   const differs = keysOnly ? diff.onlyInA.length > 0 || diff.onlyInB.length > 0 : hasDifferences(diff);
 
   if (flags.has("--json")) {
-    console.log(JSON.stringify(keysOnly ? { onlyInA: diff.onlyInA, onlyInB: diff.onlyInB } : diff, null, 2));
+    const payload = keysOnly
+      ? { onlyInA: diff.onlyInA, onlyInB: diff.onlyInB }
+      : {
+          ...diff,
+          changed: diff.changed.map((c) => ({ key: c.key, a: show(c.a), b: show(c.b) })),
+        };
+    console.log(JSON.stringify(payload, null, 2));
   } else {
     const [nameA, nameB] = files as [string, string];
     console.log(C.bold(`\n${nameA}  ↔  ${nameB}\n`));
