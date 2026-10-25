@@ -1,5 +1,0 @@
-# Falsos positivos confirmados manualmente - Fixture de teste (TOKEN=segredo-falso-123).
-# Formato: commit:arquivo:regra:linha (fingerprint exato; segredo novo no mesmo
-# arquivo continua sendo detectado). Nao usar path allowlist para isso.
-
-b693ef28e97835c2d3020b82eb78be9280f140ee:tests/fixtures/a.env:generic-api-key:1

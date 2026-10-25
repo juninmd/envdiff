@@ -1,5 +1,5 @@
 // Minimal .env parser: KEY=VALUE, `export` prefix, quotes, inline comments,
-// and double-quote escape sequences (\\, \", \n, \t, \r). Order-preserving.
+// and `\n` escapes inside double quotes. Order-preserving.
 
 export type ParseWarningKind =
   | "malformed"
@@ -19,14 +19,6 @@ export interface ParseResult {
   warnings: ParseWarning[];
 }
 
-const ESCAPE_MAP: Record<string, string> = {
-  "\\": "\\",
-  '"': '"',
-  n: "\n",
-  t: "\t",
-  r: "\r",
-};
-
 export function parseEnvDetailed(text: string): ParseResult {
   const values = new Map<string, string>();
   const warnings: ParseWarning[] = [];
@@ -40,7 +32,7 @@ export function parseEnvDetailed(text: string): ParseResult {
 
     if (line === "" || line.startsWith("#")) continue;
 
-    const withoutExport = line.replace(/^export\s+/, "");
+    const withoutExport = line.startsWith("export ") ? line.slice(7).trim() : line;
     const eq = withoutExport.indexOf("=");
     if (eq < 1) {
       warnings.push({ line: lineNum, kind: "malformed" });
@@ -84,7 +76,7 @@ export function parseEnvDetailed(text: string): ParseResult {
         if (/^(?:[ \t]+#.*|[ \t]*)$/.test(rest)) {
           const inner = rawVal.slice(1, closingIdx);
           value = quoteChar === '"'
-            ? inner.replace(/\\(.)/g, (_, char) => ESCAPE_MAP[char] ?? `\\${char}`)
+            ? inner.replace(/\\n/g, "\n").replace(/\\"/g, '"')
             : inner;
         }
       } else {
