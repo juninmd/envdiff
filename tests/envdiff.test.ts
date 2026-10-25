@@ -85,13 +85,6 @@ test("ordering is independent of locale / Intl", () => {
   expect(d.same).toEqual(["A", "_a", "a", "z"]);
 });
 
-test("maskValue hides the middle", () => {
-  expect(maskValue("")).toBe("(empty)");
-  expect(maskValue("ab")).toBe("********");
-  expect(maskValue("secret")).toBe("********");
-  expect(maskValue("supersecrettoken")).toBe("********");
-});
-
 test("maskValue returns fixed 8 asterisks or (empty)", () => {
   expect(maskValue("")).toBe("(empty)");
   expect(maskValue("ab")).toBe("********");
@@ -153,7 +146,7 @@ test("--json output without --keys-only includes schemaVersion 1 and masked chan
     expect(json.onlyInB).toEqual(["C"]);
     expect(json.same).toEqual(["SAME"]);
     expect(json.changed).toEqual([
-      { key: "B", a: "su******et (11)", b: "di******et (15)" },
+      { key: "B", a: "********", b: "********" },
     ]);
   } finally {
     unlinkSync(pathA);
