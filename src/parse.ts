@@ -14,12 +14,12 @@ export function parseEnv(text: string): Map<string, string> {
     const line = rawLine.trim();
     if (line === "" || line.startsWith("#")) continue;
 
-    const withoutExport = line.startsWith("export ") ? line.slice(7).trim() : line;
+    const withoutExport = line.replace(/^export\s+/, "");
     const eq = withoutExport.indexOf("=");
     if (eq < 1) continue; // no key or malformed
 
     const key = withoutExport.slice(0, eq).trim();
-    if (!/^[A-Za-z_][A-Za-z0-9_.]*$/.test(key)) continue;
+    if (!/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(key)) continue;
 
     const rawVal = withoutExport.slice(eq + 1).trim();
     let value: string | null = null;
