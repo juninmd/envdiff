@@ -2,14 +2,54 @@
 import { readFileSync } from "node:fs";
 import { parseEnv } from "./parse";
 import { diffEnv, maskValue, hasDifferences } from "./diff";
+import pkg from "../package.json" with { type: "json" };
+import { colorEnabled, createColors } from "./colors";
 
-const C = {
-  red: (s: string) => `\x1b[31m${s}\x1b[0m`,
-  green: (s: string) => `\x1b[32m${s}\x1b[0m`,
-  yellow: (s: string) => `\x1b[33m${s}\x1b[0m`,
-  dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
-  bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
-};
+const C = createColors(colorEnabled(process.env, Boolean(process.stdout?.isTTY)));
+
+const KNOWN_FLAGS = [
+  "--json",
+  "--no-mask",
+  "--keys-only",
+  "--exit-code",
+  "-h",
+  "--help",
+  "-V",
+  "--version",
+];
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i]![0] = i;
+  for (let j = 0; j <= n; j++) dp[0]![j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        dp[i]![j] = dp[i - 1]![j - 1]!;
+      } else {
+        dp[i]![j] = 1 + Math.min(dp[i - 1]![j]!, dp[i]![j - 1]!, dp[i - 1]![j - 1]!);
+      }
+    }
+  }
+  return dp[m]![n]!;
+}
+
+function getClosestFlag(arg: string): string | undefined {
+  let bestFlag: string | undefined;
+  let minDistance = Infinity;
+
+  for (const flag of KNOWN_FLAGS) {
+    const dist = levenshtein(arg, flag);
+    if (dist < minDistance) {
+      minDistance = dist;
+      bestFlag = flag;
+    }
+  }
+
+  return minDistance <= 2 ? bestFlag : undefined;
+}
 
 const HELP = `envdiff — compare two .env files
 
@@ -21,19 +61,55 @@ Options:
   --no-mask       show raw values (default: masked)
   --keys-only     ignore values; only compare which keys exist
   --exit-code     exit 1 when there are differences (for CI)
+  -V, --version   show version number
   -h, --help      show this help
+
+Exit codes:
+  0               no differences (or differences without --exit-code)
+  1               differences found (with --exit-code)
+  2               usage or I/O error
+
+Note:
+  Values are masked by default, including in --json.
 
 Examples:
   envdiff .env .env.example --keys-only --exit-code
   envdiff prod.env staging.env`;
 
-function main(argv: string[]): number {
-  const flags = new Set(argv.filter((a) => a.startsWith("-")));
+export function main(argv: string[]): number {
+  const flags = new Set<string>();
+  const files: string[] = [];
+  let doubleDashSeen = false;
+
+  for (const arg of argv) {
+    if (doubleDashSeen) {
+      files.push(arg);
+    } else if (arg === "--") {
+      doubleDashSeen = true;
+    } else if (arg.startsWith("-")) {
+      if (KNOWN_FLAGS.includes(arg)) {
+        flags.add(arg);
+      } else {
+        const suggestion = getClosestFlag(arg);
+        const didYouMean = suggestion ? ` (did you mean '${suggestion}'?)` : "";
+        console.error(C.red(`error: unknown option '${arg}'${didYouMean}`));
+        return 2;
+      }
+    } else {
+      files.push(arg);
+    }
+  }
+
+  if (flags.has("-V") || flags.has("--version")) {
+    console.log(pkg.version);
+    return 0;
+  }
+
   if (flags.has("-h") || flags.has("--help")) {
     console.log(HELP);
     return 0;
   }
-  const files = argv.filter((a) => !a.startsWith("-"));
+
   if (files.length !== 2) {
     console.error(C.red("error: need exactly two files"));
     console.error(HELP);
@@ -55,6 +131,15 @@ function main(argv: string[]): number {
 
   const diff = diffEnv(a, b);
   const differs = keysOnly ? diff.onlyInA.length > 0 || diff.onlyInB.length > 0 : hasDifferences(diff);
+
+  const jsonDiff = {
+    ...diff,
+    changed: diff.changed.map((c) => ({
+      key: c.key,
+      a: show(c.a),
+      b: show(c.b),
+    })),
+  };
 
   if (flags.has("--json")) {
     const jsonOutput = {
@@ -93,4 +178,6 @@ function main(argv: string[]): number {
   return flags.has("--exit-code") && differs ? 1 : 0;
 }
 
-process.exit(main(process.argv.slice(2)));
+if (import.meta.main) {
+  process.exit(main(process.argv.slice(2)));
+}
