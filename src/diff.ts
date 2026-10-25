@@ -23,12 +23,10 @@ export function diffEnv(a: Map<string, string>, b: Map<string, string>): EnvDiff
   return { onlyInA: s(onlyInA), onlyInB: s(onlyInB), changed: changed.sort((x, y) => x.key.localeCompare(y.key)), same: s(same) };
 }
 
-/** Mask a secret-ish value: keep 1st/last char, hide the middle. */
+/** Mask a secret-ish value: hide value with fixed 8 asterisks, without revealing length or characters. */
 export function maskValue(v: string): string {
-  if (v.length === 0) return "(empty)";
-  if (v.length <= 2) return "*".repeat(v.length);
-  if (v.length <= 6) return v[0] + "*".repeat(v.length - 1);
-  return `${v.slice(0, 2)}${"*".repeat(6)}${v.slice(-2)} (${v.length})`;
+  if (v === "") return "(empty)";
+  return "********";
 }
 
 export function hasDifferences(d: EnvDiff): boolean {
