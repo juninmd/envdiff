@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
+import { readEnvFile } from "./read";
 import { parseEnv } from "./parse";
 import { diffEnv, maskValue, hasDifferences } from "./diff";
 
@@ -46,8 +46,8 @@ function main(argv: string[]): number {
 
   let a: Map<string, string>, b: Map<string, string>;
   try {
-    a = parseEnv(readFileSync(files[0]!, "utf8"));
-    b = parseEnv(readFileSync(files[1]!, "utf8"));
+    a = parseEnv(readEnvFile(files[0]!));
+    b = parseEnv(readEnvFile(files[1]!));
   } catch (err) {
     console.error(C.red(`error: ${err instanceof Error ? err.message : err}`));
     return 2;
