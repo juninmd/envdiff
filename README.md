@@ -26,6 +26,7 @@ envdiff <a.env> <b.env> [options]
 | `--no-mask`   | Show raw values (default: masked)                    |
 | `--keys-only` | Ignore values; only compare which keys exist         |
 | `--exit-code` | Exit `1` when there are differences (for CI)         |
+| `-V, --version` | Show version number                                |
 | `-h, --help`  | Show help                                            |
 
 ### Examples
