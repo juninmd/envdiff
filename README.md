@@ -26,6 +26,7 @@ envdiff <a.env> <b.env> [options]
 | `--no-mask`   | Show raw values (default: masked)                    |
 | `--keys-only` | Ignore values; only compare which keys exist         |
 | `--exit-code` | Exit `1` when there are differences (for CI)         |
+| `-V, --version` | Show version number                                |
 | `-h, --help`  | Show help                                            |
 
 ### Examples
@@ -50,6 +51,22 @@ For each pair envdiff reports three buckets:
 - **changed** — keys in both with different values (skipped with `--keys-only`)
 
 Exit codes: `0` no differences (or differences without `--exit-code`), `1` differences with `--exit-code`, `2` usage/IO error.
+
+### Quoting & Escapes
+
+`envdiff` supports quotes and inline comments in `.env` files.
+
+- **Double quotes (`"..."`)** interpret escape sequences in a single pass:
+  | Escape Sequence | Parsed Value |
+  | --------------- | ------------ |
+  | `\\`            | `\` (literal backslash) |
+  | `\"`            | `"` (double quote) |
+  | `\n`            | Line feed (LF) |
+  | `\t`            | Tab (TAB) |
+  | `\r`            | Carriage return (CR) |
+  | `\x` (other)    | `\x` (preserved without loss) |
+
+- **Single quotes (`'...'`)** are treated as strict literals (no escape processing is applied).
 
 ## Development
 
