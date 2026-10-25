@@ -1,29 +1,84 @@
 // Minimal .env parser: KEY=VALUE, `export` prefix, quotes, inline comments,
 // and `\n` escapes inside double quotes. Order-preserving.
-export function parseEnv(text: string): Map<string, string> {
-  const out = new Map<string, string>();
-  for (const rawLine of text.split(/\r?\n/)) {
+
+export type ParseWarningKind =
+  | "malformed"
+  | "invalid-key"
+  | "duplicate"
+  | "unclosed-quote";
+
+export interface ParseWarning {
+  line: number;
+  kind: ParseWarningKind;
+  key?: string;
+  firstLine?: number;
+}
+
+export interface ParseResult {
+  values: Map<string, string>;
+  warnings: ParseWarning[];
+}
+
+export function parseEnvDetailed(text: string): ParseResult {
+  const values = new Map<string, string>();
+  const warnings: ParseWarning[] = [];
+  const firstLines = new Map<string, number>();
+
+  const lines = text.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index++) {
+    const rawLine = lines[index]!;
+    const lineNum = index + 1;
     const line = rawLine.trim();
+
     if (line === "" || line.startsWith("#")) continue;
 
     const withoutExport = line.startsWith("export ") ? line.slice(7).trim() : line;
     const eq = withoutExport.indexOf("=");
-    if (eq < 1) continue; // no key or malformed
+    if (eq < 1) {
+      warnings.push({ line: lineNum, kind: "malformed" });
+      continue;
+    }
 
     const key = withoutExport.slice(0, eq).trim();
-    if (!/^[A-Za-z_][A-Za-z0-9_.]*$/.test(key)) continue;
+    if (!/^[A-Za-z_][A-Za-z0-9_.]*$/.test(key)) {
+      warnings.push({ line: lineNum, kind: "invalid-key", key });
+      continue;
+    }
+
+    if (firstLines.has(key)) {
+      warnings.push({
+        line: lineNum,
+        kind: "duplicate",
+        key,
+        firstLine: firstLines.get(key)!,
+      });
+    } else {
+      firstLines.set(key, lineNum);
+    }
 
     let value = withoutExport.slice(eq + 1).trim();
-    if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
+    const isDoubleQuoted = value.startsWith('"');
+    const isSingleQuoted = value.startsWith("'");
+
+    if (isDoubleQuoted && value.endsWith('"') && value.length >= 2) {
       value = value.slice(1, -1).replace(/\\n/g, "\n").replace(/\\"/g, '"');
-    } else if (value.startsWith("'") && value.endsWith("'") && value.length >= 2) {
+    } else if (isSingleQuoted && value.endsWith("'") && value.length >= 2) {
       value = value.slice(1, -1);
     } else {
+      if (isDoubleQuoted || isSingleQuoted) {
+        warnings.push({ line: lineNum, kind: "unclosed-quote", key });
+      }
       // Strip an unquoted inline comment ("  # ...").
       const hash = value.indexOf(" #");
       if (hash > -1) value = value.slice(0, hash).trim();
     }
-    out.set(key, value);
+
+    values.set(key, value);
   }
-  return out;
+
+  return { values, warnings };
+}
+
+export function parseEnv(text: string): Map<string, string> {
+  return parseEnvDetailed(text).values;
 }

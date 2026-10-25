@@ -1,7 +1,35 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
-import { parseEnv } from "./parse";
+import { parseEnvDetailed, ParseWarning } from "./parse";
 import { diffEnv, maskValue, hasDifferences } from "./diff";
+
+function formatWarning(filePath: string, w: ParseWarning): string {
+  let msg = "";
+  switch (w.kind) {
+    case "duplicate":
+      msg = `duplicate key ${w.key} (first at line ${w.firstLine}); the last value is used.`;
+      break;
+    case "malformed":
+      msg = "malformed line";
+      break;
+    case "invalid-key":
+      msg = `invalid key ${w.key}`;
+      break;
+    case "unclosed-quote":
+      msg = `unclosed quote for key ${w.key}`;
+      break;
+  }
+  return `warning: ${filePath}:${w.line}: ${msg}`;
+}
+
+function parseFile(filePath: string): Map<string, string> {
+  const content = readFileSync(filePath, "utf8");
+  const { values, warnings } = parseEnvDetailed(content);
+  for (const w of warnings) {
+    console.error(formatWarning(filePath, w));
+  }
+  return values;
+}
 
 const C = {
   red: (s: string) => `\x1b[31m${s}\x1b[0m`,
@@ -46,8 +74,8 @@ function main(argv: string[]): number {
 
   let a: Map<string, string>, b: Map<string, string>;
   try {
-    a = parseEnv(readFileSync(files[0]!, "utf8"));
-    b = parseEnv(readFileSync(files[1]!, "utf8"));
+    a = parseFile(files[0]!);
+    b = parseFile(files[1]!);
   } catch (err) {
     console.error(C.red(`error: ${err instanceof Error ? err.message : err}`));
     return 2;
