@@ -15,6 +15,12 @@ EMPTY=
 BAD LINE
 =noKey
 NUM.KEY=1
+A="x" # c
+A2='x' # c
+B=x\t# c
+C=x#y
+D="a#b"
+E=""
 `);
   expect(m.get("FOO")).toBe("bar");
   expect(m.get("QUOTED")).toBe("he llo");
@@ -23,6 +29,32 @@ NUM.KEY=1
   expect(m.get("EMPTY")).toBe("");
   expect(m.get("NUM.KEY")).toBe("1");
   expect(m.has("BAD LINE")).toBe(false);
+  expect(m.get("A")).toBe("x");
+  expect(m.get("A2")).toBe("x");
+  expect(m.get("B")).toBe("x");
+  expect(m.get("C")).toBe("x#y");
+  expect(m.get("D")).toBe("a#b");
+  expect(m.get("E")).toBe("");
+});
+
+test("files differing only in comments result in no differences", () => {
+  const file1 = `
+A="x" # comment 1
+B='y' \t# comment 2
+C=z\t# comment 3
+D=val#hash
+E=""
+`;
+  const file2 = `
+A="x"
+B='y'
+C=z
+D=val#hash
+E="" # comment
+`;
+  const env1 = parseEnv(file1);
+  const env2 = parseEnv(file2);
+  expect(hasDifferences(diffEnv(env1, env2))).toBe(false);
 });
 
 test("diffEnv classifies keys", () => {

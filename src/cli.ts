@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { parseEnvDetailed, ParseWarning } from "./parse";
 import { diffEnv, maskValue, hasDifferences } from "./diff";
+import { colorEnabled, createColors } from "./colors";
 
 function formatWarning(filePath: string, w: ParseWarning): string {
   let msg = "";
@@ -31,13 +32,7 @@ function parseFile(filePath: string): Map<string, string> {
   return values;
 }
 
-const C = {
-  red: (s: string) => `\x1b[31m${s}\x1b[0m`,
-  green: (s: string) => `\x1b[32m${s}\x1b[0m`,
-  yellow: (s: string) => `\x1b[33m${s}\x1b[0m`,
-  dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
-  bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
-};
+const C = createColors(colorEnabled(process.env, Boolean(process.stdout?.isTTY)));
 
 const HELP = `envdiff — compare two .env files
 

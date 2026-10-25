@@ -1,6 +1,3 @@
-// Minimal .env parser: KEY=VALUE, `export` prefix, quotes, inline comments,
-// and `\n` escapes inside double quotes. Order-preserving.
-
 export type ParseWarningKind =
   | "malformed"
   | "invalid-key"
@@ -56,21 +53,39 @@ export function parseEnvDetailed(text: string): ParseResult {
       firstLines.set(key, lineNum);
     }
 
-    let value = withoutExport.slice(eq + 1).trim();
-    const isDoubleQuoted = value.startsWith('"');
-    const isSingleQuoted = value.startsWith("'");
+    const rawVal = withoutExport.slice(eq + 1).trim();
+    let value: string | null = null;
 
-    if (isDoubleQuoted && value.endsWith('"') && value.length >= 2) {
-      value = value.slice(1, -1).replace(/\\n/g, "\n").replace(/\\"/g, '"');
-    } else if (isSingleQuoted && value.endsWith("'") && value.length >= 2) {
-      value = value.slice(1, -1);
-    } else {
-      if (isDoubleQuoted || isSingleQuoted) {
-        warnings.push({ line: lineNum, kind: "unclosed-quote", key });
+    if (rawVal.startsWith('"') || rawVal.startsWith("'")) {
+      const quoteChar = rawVal[0];
+      let closingIdx = -1;
+      for (let i = 1; i < rawVal.length; i++) {
+        if (quoteChar === '"' && rawVal[i] === "\\") {
+          i++;
+        } else if (rawVal[i] === quoteChar) {
+          closingIdx = i;
+          break;
+        }
       }
-      // Strip an unquoted inline comment ("  # ...").
-      const hash = value.indexOf(" #");
-      if (hash > -1) value = value.slice(0, hash).trim();
+
+      if (closingIdx !== -1) {
+        const rest = rawVal.slice(closingIdx + 1);
+        if (/^(?:[ \t]+#.*|[ \t]*)$/.test(rest)) {
+          const inner = rawVal.slice(1, closingIdx);
+          value = quoteChar === '"'
+            ? inner.replace(/\\n/g, "\n").replace(/\\"/g, '"')
+            : inner;
+        }
+      }
+    }
+
+    if (value === null) {
+      const hash = rawVal.search(/[ \t]+#/);
+      value = hash > -1 ? rawVal.slice(0, hash).trim() : rawVal.trim();
+    }
+
+    if (value === null) {
+      value = "";
     }
 
     values.set(key, value);
