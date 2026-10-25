@@ -21,15 +21,35 @@ export function parseEnv(text: string): Map<string, string> {
     const key = withoutExport.slice(0, eq).trim();
     if (!/^[A-Za-z_][A-Za-z0-9_.]*$/.test(key)) continue;
 
-    let value = withoutExport.slice(eq + 1).trim();
-    if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
-      value = value.slice(1, -1).replace(/\\(.)/g, (_, char) => ESCAPE_MAP[char] ?? `\\${char}`);
-    } else if (value.startsWith("'") && value.endsWith("'") && value.length >= 2) {
-      value = value.slice(1, -1);
-    } else {
-      // Strip an unquoted inline comment ("  # ...").
-      const hash = value.indexOf(" #");
-      if (hash > -1) value = value.slice(0, hash).trim();
+    const rawVal = withoutExport.slice(eq + 1).trim();
+    let value: string | null = null;
+
+    if (rawVal.startsWith('"') || rawVal.startsWith("'")) {
+      const quoteChar = rawVal[0];
+      let closingIdx = -1;
+      for (let i = 1; i < rawVal.length; i++) {
+        if (quoteChar === '"' && rawVal[i] === "\\") {
+          i++;
+        } else if (rawVal[i] === quoteChar) {
+          closingIdx = i;
+          break;
+        }
+      }
+
+      if (closingIdx !== -1) {
+        const rest = rawVal.slice(closingIdx + 1);
+        if (/^(?:[ \t]+#.*|[ \t]*)$/.test(rest)) {
+          const inner = rawVal.slice(1, closingIdx);
+          value = quoteChar === '"'
+            ? inner.replace(/\\(.)/g, (_, char) => ESCAPE_MAP[char] ?? `\\${char}`)
+            : inner;
+        }
+      }
+    }
+
+    if (value === null) {
+      const hash = rawVal.search(/[ \t]+#/);
+      value = hash > -1 ? rawVal.slice(0, hash).trim() : rawVal.trim();
     }
     out.set(key, value);
   }
