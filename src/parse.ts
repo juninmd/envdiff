@@ -1,5 +1,13 @@
 // Minimal .env parser: KEY=VALUE, `export` prefix, quotes, inline comments,
-// and `\n` escapes inside double quotes. Order-preserving.
+// and double-quote escape sequences (\\, \", \n, \t, \r). Order-preserving.
+const ESCAPE_MAP: Record<string, string> = {
+  "\\": "\\",
+  '"': '"',
+  n: "\n",
+  t: "\t",
+  r: "\r",
+};
+
 export function parseEnv(text: string): Map<string, string> {
   const out = new Map<string, string>();
   for (const rawLine of text.split(/\r?\n/)) {
@@ -15,7 +23,7 @@ export function parseEnv(text: string): Map<string, string> {
 
     let value = withoutExport.slice(eq + 1).trim();
     if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
-      value = value.slice(1, -1).replace(/\\n/g, "\n").replace(/\\"/g, '"');
+      value = value.slice(1, -1).replace(/\\(.)/g, (_, char) => ESCAPE_MAP[char] ?? `\\${char}`);
     } else if (value.startsWith("'") && value.endsWith("'") && value.length >= 2) {
       value = value.slice(1, -1);
     } else {

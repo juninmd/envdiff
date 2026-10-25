@@ -51,6 +51,22 @@ For each pair envdiff reports three buckets:
 
 Exit codes: `0` no differences (or differences without `--exit-code`), `1` differences with `--exit-code`, `2` usage/IO error.
 
+### Quoting & Escapes
+
+`envdiff` supports quotes and inline comments in `.env` files.
+
+- **Double quotes (`"..."`)** interpret escape sequences in a single pass:
+  | Escape Sequence | Parsed Value |
+  | --------------- | ------------ |
+  | `\\`            | `\` (literal backslash) |
+  | `\"`            | `"` (double quote) |
+  | `\n`            | Line feed (LF) |
+  | `\t`            | Tab (TAB) |
+  | `\r`            | Carriage return (CR) |
+  | `\x` (other)    | `\x` (preserved without loss) |
+
+- **Single quotes (`'...'`)** are treated as strict literals (no escape processing is applied).
+
 ## Development
 
 Built with [Bun](https://bun.sh) and bundled with [tsdown](https://github.com/rolldown/tsdown). No runtime dependencies.
