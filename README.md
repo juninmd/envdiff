@@ -51,6 +51,15 @@ For each pair envdiff reports three buckets:
 
 Exit codes: `0` no differences (or differences without `--exit-code`), `1` differences with `--exit-code`, `2` usage/IO error.
 
+### Máscara
+
+Por padrão, os valores são mascarados para evitar vazamento de credenciais em logs ou PRs:
+
+- String vazia: `(empty)`
+- Qualquer outro valor: `********` (oito asteriscos fixos, sem revelar prefixo, sufixo ou comprimento)
+
+Para exibir os valores sem máscara, utilize a flag `--no-mask`.
+
 ## Development
 
 Built with [Bun](https://bun.sh) and bundled with [tsdown](https://github.com/rolldown/tsdown). No runtime dependencies.

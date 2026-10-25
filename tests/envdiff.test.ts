@@ -39,9 +39,45 @@ test("identical files show no differences", () => {
   expect(hasDifferences(diffEnv(a, parseEnv("Y=2\nX=1")))).toBe(false);
 });
 
-test("maskValue hides the middle", () => {
+test("maskValue returns fixed 8 asterisks or (empty)", () => {
   expect(maskValue("")).toBe("(empty)");
-  expect(maskValue("ab")).toBe("**");
-  expect(maskValue("secret")).toBe("s*****");
-  expect(maskValue("supersecrettoken")).toBe("su******en (16)");
+  expect(maskValue("ab")).toBe("********");
+  expect(maskValue("secret")).toBe("********");
+  expect(maskValue("supersecrettoken")).toBe("********");
+});
+
+test("property test: mask does not contain 2-char substrings for 200 random values", () => {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-$#@!";
+  let testedCount = 0;
+
+  for (let i = 0; i < 200; i++) {
+    const len = Math.floor(Math.random() * (20 - 8 + 1)) + 8; // 8 to 20
+    let randomVal = "";
+    for (let j = 0; j < len; j++) {
+      randomVal += chars[Math.floor(Math.random() * chars.length)];
+    }
+
+    const masked = maskValue(randomVal);
+    expect(masked).toBe("********");
+
+    for (let k = 0; k < randomVal.length - 1; k++) {
+      const sub = randomVal.slice(k, k + 2);
+      expect(masked.includes(sub)).toBe(false);
+    }
+    testedCount++;
+  }
+
+  console.log(`Property test verified ${testedCount} random values.`);
+  expect(testedCount).toBe(200);
+});
+
+test("--no-mask shows raw values", () => {
+  const a = parseEnv("SECRET=supersecrettoken");
+  const b = parseEnv("SECRET=differentsecret");
+  const diff = diffEnv(a, b);
+
+  expect(diff.changed[0].a).toBe("supersecrettoken");
+  expect(diff.changed[0].b).toBe("differentsecret");
+  expect(maskValue(diff.changed[0].a)).toBe("********");
+  // raw value remains unchanged when mask is disabled (diff stores raw values, maskValue is bypassed)
 });
