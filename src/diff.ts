@@ -19,8 +19,9 @@ export function diffEnv(a: Map<string, string>, b: Map<string, string>): EnvDiff
   }
   for (const key of b.keys()) if (!a.has(key)) onlyInB.push(key);
 
-  const s = (arr: string[]) => arr.sort((x, y) => x.localeCompare(y));
-  return { onlyInA: s(onlyInA), onlyInB: s(onlyInB), changed: changed.sort((x, y) => x.key.localeCompare(y.key)), same: s(same) };
+  const cmp = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
+  const s = (arr: string[]) => arr.sort(cmp);
+  return { onlyInA: s(onlyInA), onlyInB: s(onlyInB), changed: changed.sort((x, y) => cmp(x.key, y.key)), same: s(same) };
 }
 
 /** Mask a secret-ish value: keep 1st/last char, hide the middle. */
