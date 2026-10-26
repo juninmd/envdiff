@@ -132,15 +132,6 @@ export function main(argv: string[]): number {
   const diff = diffEnv(a, b);
   const differs = keysOnly ? diff.onlyInA.length > 0 || diff.onlyInB.length > 0 : hasDifferences(diff);
 
-  const jsonDiff = {
-    ...diff,
-    changed: diff.changed.map((c) => ({
-      key: c.key,
-      a: show(c.a),
-      b: show(c.b),
-    })),
-  };
-
   if (flags.has("--json")) {
     const jsonOutput = {
       schemaVersion: 1,
