@@ -2,6 +2,12 @@ import { test, expect } from "bun:test";
 import { parseEnv } from "../src/parse";
 import { diffEnv, maskValue, hasDifferences } from "../src/diff";
 
+test("diffEnv sorts keys by code unit, not by locale collation", () => {
+  const a = new Map([["b", "1"], ["B", "1"], ["a", "1"]]);
+  const b = new Map([["b", "1"], ["B", "1"], ["a", "1"]]);
+  expect(diffEnv(a, b).same).toEqual(["B", "a", "b"]);
+});
+
 test("parseEnv handles export, quotes, comments", () => {
   const m = parseEnv(`
 # comment
@@ -132,7 +138,7 @@ test("--json output without --keys-only includes schemaVersion 1 and masked chan
     expect(json.onlyInB).toEqual(["C"]);
     expect(json.same).toEqual(["SAME"]);
     expect(json.changed).toEqual([
-      { key: "B", a: "su******et (11)", b: "di******et (15)" },
+      { key: "B", a: "********", b: "********" },
     ]);
   } finally {
     unlinkSync(pathA);
