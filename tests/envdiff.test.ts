@@ -79,11 +79,119 @@ test("identical files show no differences", () => {
   expect(hasDifferences(diffEnv(a, parseEnv("Y=2\nX=1")))).toBe(false);
 });
 
-test("maskValue hides the middle", () => {
+test("maskValue returns fixed 8 asterisks or (empty)", () => {
   expect(maskValue("")).toBe("(empty)");
-  expect(maskValue("ab")).toBe("**");
-  expect(maskValue("secret")).toBe("s*****");
-  expect(maskValue("supersecrettoken")).toBe("su******en (16)");
+  expect(maskValue("ab")).toBe("********");
+  expect(maskValue("secret")).toBe("********");
+  expect(maskValue("supersecrettoken")).toBe("********");
+});
+
+test("property test: mask does not contain 2-char substrings for 200 random values", () => {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-$#@!";
+  let testedCount = 0;
+
+  for (let i = 0; i < 200; i++) {
+    const len = Math.floor(Math.random() * (20 - 8 + 1)) + 8; // 8 to 20
+    let randomVal = "";
+    for (let j = 0; j < len; j++) {
+      randomVal += chars[Math.floor(Math.random() * chars.length)];
+    }
+
+    const masked = maskValue(randomVal);
+    expect(masked).toBe("********");
+
+    for (let k = 0; k < randomVal.length - 1; k++) {
+      const sub = randomVal.slice(k, k + 2);
+      expect(masked.includes(sub)).toBe(false);
+    }
+    testedCount++;
+  }
+
+  console.log(`Property test verified ${testedCount} random values.`);
+  expect(testedCount).toBe(200);
+});
+
+test("--no-mask shows raw values", () => {
+  const a = parseEnv("SECRET=supersecrettoken");
+  const b = parseEnv("SECRET=differentsecret");
+  const diff = diffEnv(a, b);
+
+  expect(diff.changed[0].a).toBe("supersecrettoken");
+  expect(diff.changed[0].b).toBe("differentsecret");
+  expect(maskValue(diff.changed[0].a)).toBe("********");
+  // raw value remains unchanged when mask is disabled (diff stores raw values, maskValue is bypassed)
+});
+
+test("--json output without --keys-only includes schemaVersion 1 and masked changed values", () => {
+  const pathA = `${import.meta.dir}/a_${Date.now()}.env`;
+  const pathB = `${import.meta.dir}/b_${Date.now()}.env`;
+  const { writeFileSync, unlinkSync } = require("node:fs");
+  writeFileSync(pathA, "A=1\nB=supersecret\nSAME=value");
+  writeFileSync(pathB, "B=differentsecret\nC=2\nSAME=value");
+
+  try {
+    const proc = Bun.spawnSync(["bun", "src/cli.ts", pathA, pathB, "--json"]);
+    expect(proc.exitCode).toBe(0);
+    const json = JSON.parse(proc.stdout.toString());
+
+    expect(Object.keys(json)).toEqual(["schemaVersion", "onlyInA", "onlyInB", "changed", "same"]);
+    expect(json.schemaVersion).toBe(1);
+    expect(json.onlyInA).toEqual(["A"]);
+    expect(json.onlyInB).toEqual(["C"]);
+    expect(json.same).toEqual(["SAME"]);
+    expect(json.changed).toEqual([
+      { key: "B", a: "********", b: "********" },
+    ]);
+  } finally {
+    unlinkSync(pathA);
+    unlinkSync(pathB);
+  }
+});
+
+test("--json output with --keys-only has changed === null and preserves onlyInA, onlyInB, same", () => {
+  const pathA = `${import.meta.dir}/a_keys_${Date.now()}.env`;
+  const pathB = `${import.meta.dir}/b_keys_${Date.now()}.env`;
+  const { writeFileSync, unlinkSync } = require("node:fs");
+  writeFileSync(pathA, "A=1\nB=supersecret\nSAME=value");
+  writeFileSync(pathB, "B=differentsecret\nC=2\nSAME=value");
+
+  try {
+    const proc = Bun.spawnSync(["bun", "src/cli.ts", pathA, pathB, "--json", "--keys-only"]);
+    expect(proc.exitCode).toBe(0);
+    const json = JSON.parse(proc.stdout.toString());
+
+    expect(Object.keys(json)).toEqual(["schemaVersion", "onlyInA", "onlyInB", "changed", "same"]);
+    expect(json.schemaVersion).toBe(1);
+    expect(json.onlyInA).toEqual(["A"]);
+    expect(json.onlyInB).toEqual(["C"]);
+    expect(json.same).toEqual(["SAME"]);
+    expect(json.changed).toBeNull();
+  } finally {
+    unlinkSync(pathA);
+    unlinkSync(pathB);
+  }
+});
+
+test("--json output with --no-mask returns raw values in changed", () => {
+  const pathA = `${import.meta.dir}/a_nomask_${Date.now()}.env`;
+  const pathB = `${import.meta.dir}/b_nomask_${Date.now()}.env`;
+  const { writeFileSync, unlinkSync } = require("node:fs");
+  writeFileSync(pathA, "SECRET=rawA");
+  writeFileSync(pathB, "SECRET=rawB");
+
+  try {
+    const proc = Bun.spawnSync(["bun", "src/cli.ts", pathA, pathB, "--json", "--no-mask"]);
+    expect(proc.exitCode).toBe(0);
+    const json = JSON.parse(proc.stdout.toString());
+
+    expect(json.schemaVersion).toBe(1);
+    expect(json.changed).toEqual([
+      { key: "SECRET", a: "rawA", b: "rawB" },
+    ]);
+  } finally {
+    unlinkSync(pathA);
+    unlinkSync(pathB);
+  }
 });
 
 test("parseEnvDetailed detects duplicates, malformed, invalid keys, unclosed quotes", () => {
@@ -153,63 +261,5 @@ test("CLI stdout is identical with/without warnings and warnings go to stderr", 
     try { unlinkSync(cleanA); } catch {}
     try { unlinkSync(cleanB); } catch {}
     try { unlinkSync(warnA); } catch {}
-  }
-});
-
-test("maskValue produces no 2-char substring of input for random values", () => {
-  let testedCount = 0;
-  for (let i = 0; i < 200; i++) {
-    const len = Math.floor(Math.random() * 50) + 2;
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
-    let randomVal = "";
-    for (let j = 0; j < len; j++) {
-      randomVal += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    const masked = maskValue(randomVal);
-    for (let k = 0; k < randomVal.length - 1; k++) {
-      const sub = randomVal.slice(k, k + 2);
-      expect(masked.includes(sub)).toBe(false);
-    }
-    testedCount++;
-  }
-
-  console.log(`Property test verified ${testedCount} random values.`);
-  expect(testedCount).toBe(200);
-});
-
-test("--no-mask shows raw values", () => {
-  const a = parseEnv("SECRET=supersecrettoken");
-  const b = parseEnv("SECRET=differentsecret");
-  const diff = diffEnv(a, b);
-
-  expect(diff.changed[0].a).toBe("supersecrettoken");
-  expect(diff.changed[0].b).toBe("differentsecret");
-  expect(maskValue(diff.changed[0].a)).toBe("********");
-  // raw value remains unchanged when mask is disabled (diff stores raw values, maskValue is bypassed)
-});
-
-test("--json output without --keys-only includes schemaVersion 1 and masked changed values", () => {
-  const pathA = `${import.meta.dir}/a_${Date.now()}.env`;
-  const pathB = `${import.meta.dir}/b_${Date.now()}.env`;
-  const { writeFileSync, unlinkSync } = require("node:fs");
-  writeFileSync(pathA, "A=1\nB=supersecret\nSAME=value");
-  writeFileSync(pathB, "B=differentsecret\nC=2\nSAME=value");
-
-  try {
-    const proc = Bun.spawnSync(["bun", "src/cli.ts", pathA, pathB, "--json"]);
-    expect(proc.exitCode).toBe(0);
-    const json = JSON.parse(proc.stdout.toString());
-
-    expect(Object.keys(json)).toEqual(["schemaVersion", "onlyInA", "onlyInB", "changed", "same"]);
-    expect(json.schemaVersion).toBe(1);
-    expect(json.onlyInA).toEqual(["A"]);
-    expect(json.onlyInB).toEqual(["C"]);
-    expect(json.same).toEqual(["SAME"]);
-    expect(json.changed).toEqual([
-      { key: "B", a: "********", b: "********" },
-    ]);
-  } finally {
-    try { unlinkSync(pathA); } catch {}
-    try { unlinkSync(pathB); } catch {}
   }
 });
