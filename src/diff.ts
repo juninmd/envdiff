@@ -19,8 +19,13 @@ export function diffEnv(a: Map<string, string>, b: Map<string, string>): EnvDiff
   }
   for (const key of b.keys()) if (!a.has(key)) onlyInB.push(key);
 
-  const s = (arr: string[]) => arr.sort((x, y) => x.localeCompare(y));
-  return { onlyInA: s(onlyInA), onlyInB: s(onlyInB), changed: changed.sort((x, y) => x.key.localeCompare(y.key)), same: s(same) };
+  const s = (arr: string[]) => arr.sort(byCodeUnit);
+  return { onlyInA: s(onlyInA), onlyInB: s(onlyInB), changed: changed.sort((x, y) => byCodeUnit(x.key, y.key)), same: s(same) };
+}
+
+/** Locale-independent order (code units), so output does not depend on the host's ICU locale. */
+function byCodeUnit(x: string, y: string): number {
+  return x < y ? -1 : x > y ? 1 : 0;
 }
 
 /** Mask a secret-ish value: keep 1st/last char, hide the middle. */
