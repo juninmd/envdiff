@@ -19,9 +19,18 @@ export function diffEnv(a: Map<string, string>, b: Map<string, string>): EnvDiff
   }
   for (const key of b.keys()) if (!a.has(key)) onlyInB.push(key);
 
-  const cmp = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
-  const s = (arr: string[]) => arr.sort(cmp);
-  return { onlyInA: s(onlyInA), onlyInB: s(onlyInB), changed: changed.sort((x, y) => cmp(x.key, y.key)), same: s(same) };
+  const s = (arr: string[]) => arr.sort(byCodeUnit);
+  return {
+    onlyInA: s(onlyInA),
+    onlyInB: s(onlyInB),
+    changed: changed.sort((x, y) => byCodeUnit(x.key, y.key)),
+    same: s(same),
+  };
+}
+
+/** Locale-independent order (code units), so output does not depend on the host's ICU locale. */
+function byCodeUnit(x: string, y: string): number {
+  return x < y ? -1 : x > y ? 1 : 0;
 }
 
 /** Mask a secret-ish value: hide value with fixed 8 asterisks, without revealing length or characters. */
