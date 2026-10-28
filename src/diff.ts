@@ -20,7 +20,12 @@ export function diffEnv(a: Map<string, string>, b: Map<string, string>): EnvDiff
   for (const key of b.keys()) if (!a.has(key)) onlyInB.push(key);
 
   const s = (arr: string[]) => arr.sort(byCodeUnit);
-  return { onlyInA: s(onlyInA), onlyInB: s(onlyInB), changed: changed.sort((x, y) => byCodeUnit(x.key, y.key)), same: s(same) };
+  return {
+    onlyInA: s(onlyInA),
+    onlyInB: s(onlyInB),
+    changed: changed.sort((x, y) => byCodeUnit(x.key, y.key)),
+    same: s(same),
+  };
 }
 
 /** Locale-independent order (code units), so output does not depend on the host's ICU locale. */

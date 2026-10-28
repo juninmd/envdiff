@@ -79,6 +79,20 @@ test("identical files show no differences", () => {
   expect(hasDifferences(diffEnv(a, parseEnv("Y=2\nX=1")))).toBe(false);
 });
 
+test("sorts keys by code unit order", () => {
+  const a = parseEnv("b=1\nB=2\na=3");
+  const b = parseEnv("b=1\nB=2\na=3");
+  const d = diffEnv(a, b);
+  expect(d.same).toEqual(["B", "a", "b"]);
+});
+
+test("ordering is independent of locale / Intl", () => {
+  const a = parseEnv("z=1\n_a=2\nA=3\na=4");
+  const b = parseEnv("z=1\n_a=2\nA=3\na=4");
+  const d = diffEnv(a, b);
+  expect(d.same).toEqual(["A", "_a", "a", "z"]);
+});
+
 test("maskValue returns fixed 8 asterisks or (empty)", () => {
   expect(maskValue("")).toBe("(empty)");
   expect(maskValue("ab")).toBe("********");
