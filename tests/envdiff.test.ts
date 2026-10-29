@@ -1,8 +1,9 @@
 import { test, expect } from "bun:test";
 import { parseEnv, parseEnvDetailed } from "../src/parse";
 import { diffEnv, maskValue, hasDifferences } from "../src/diff";
+import { readEnvFile } from "../src/read";
 import { writeFileSync, unlinkSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { spawnSync, execSync } from "node:child_process";
 
 test("diffEnv sorts keys by code unit, not by locale collation", () => {
   const a = new Map([["b", "1"], ["B", "1"], ["a", "1"]]);
@@ -139,7 +140,6 @@ test("--no-mask shows raw values", () => {
 test("--json output without --keys-only includes schemaVersion 1 and masked changed values", () => {
   const pathA = `${import.meta.dir}/a_${Date.now()}.env`;
   const pathB = `${import.meta.dir}/b_${Date.now()}.env`;
-  const { writeFileSync, unlinkSync } = require("node:fs");
   writeFileSync(pathA, "A=1\nB=supersecret\nSAME=value");
   writeFileSync(pathB, "B=differentsecret\nC=2\nSAME=value");
 
@@ -165,7 +165,6 @@ test("--json output without --keys-only includes schemaVersion 1 and masked chan
 test("--json output with --keys-only has changed === null and preserves onlyInA, onlyInB, same", () => {
   const pathA = `${import.meta.dir}/a_keys_${Date.now()}.env`;
   const pathB = `${import.meta.dir}/b_keys_${Date.now()}.env`;
-  const { writeFileSync, unlinkSync } = require("node:fs");
   writeFileSync(pathA, "A=1\nB=supersecret\nSAME=value");
   writeFileSync(pathB, "B=differentsecret\nC=2\nSAME=value");
 
@@ -189,7 +188,6 @@ test("--json output with --keys-only has changed === null and preserves onlyInA,
 test("--json output with --no-mask returns raw values in changed", () => {
   const pathA = `${import.meta.dir}/a_nomask_${Date.now()}.env`;
   const pathB = `${import.meta.dir}/b_nomask_${Date.now()}.env`;
-  const { writeFileSync, unlinkSync } = require("node:fs");
   writeFileSync(pathA, "SECRET=rawA");
   writeFileSync(pathB, "SECRET=rawB");
 
@@ -276,4 +274,35 @@ test("CLI stdout is identical with/without warnings and warnings go to stderr", 
     try { unlinkSync(cleanB); } catch {}
     try { unlinkSync(warnA); } catch {}
   }
+});
+
+test("readEnvFile reads utf16le-bom and utf8 as identical logical content", () => {
+  const utf8Text = readEnvFile("tests/fixtures/utf8.env");
+  const utf16Text = readEnvFile("tests/fixtures/utf16le-bom.env");
+  const env8 = parseEnv(utf8Text);
+  const env16 = parseEnv(utf16Text);
+  expect(hasDifferences(diffEnv(env8, env16))).toBe(false);
+  expect(env16.get("FOO")).toBe("bar");
+  expect(env16.get("BAZ")).toBe("qux");
+});
+
+test("readEnvFile reads utf8-bom correctly", () => {
+  const utf8BomText = readEnvFile("tests/fixtures/utf8-bom.env");
+  const env = parseEnv(utf8BomText);
+  expect(env.has("FOO")).toBe(true);
+  expect(env.get("FOO")).toBe("bar");
+});
+
+test("readEnvFile throws unsupported encoding on binary junk", () => {
+  expect(() => readEnvFile("tests/fixtures/binary-junk.env")).toThrow(
+    "unsupported encoding in tests/fixtures/binary-junk.env (expected UTF-8 or UTF-16 with BOM)"
+  );
+});
+
+test("CLI exits with code 2 on binary-junk.env", () => {
+  const res = spawnSync("bun", ["run", "src/cli.ts", "tests/fixtures/binary-junk.env", "tests/fixtures/utf8.env"], {
+    encoding: "utf8",
+  });
+  expect(res.status).toBe(2);
+  expect(res.stderr).toContain("error: unsupported encoding in tests/fixtures/binary-junk.env (expected UTF-8 or UTF-16 with BOM)");
 });
