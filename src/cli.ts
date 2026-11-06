@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
+import { readEnvFile } from "./read";
 import { parseEnvDetailed, ParseWarning } from "./parse";
 import { diffEnv, maskValue, hasDifferences } from "./diff";
 import pkg from "../package.json" with { type: "json" };
@@ -71,7 +72,7 @@ function formatWarning(filePath: string, w: ParseWarning): string {
 }
 
 function parseFile(filePath: string): Map<string, string> {
-  const content = readFileSync(filePath, "utf8");
+  const content = readEnvFile(filePath);
   const { values, warnings } = parseEnvDetailed(content);
   for (const w of warnings) {
     console.error(formatWarning(filePath, w));
